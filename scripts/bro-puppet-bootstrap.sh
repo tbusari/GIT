@@ -1,7 +1,7 @@
 #!/bin/bash
 # This script runs once on the machine to bootstrap Puppet
 
-REPO=RCAC-Bro-Configuration
+REPO=RCAC-borg-configuration
 
 /usr/bin/yum clean all
 /usr/bin/yum -y install puppet-3.7.5-1.el7
