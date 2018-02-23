@@ -127,12 +127,9 @@ ayounts		ALL=ALL
 goughes		ALL=ALL
 #spiperov	ALL=ALL
 
-# Bro students
+# RCAC students
 trivedi0  ALL=ALL
-wu857 ALL=ALL
-lfeathe ALL=ALL
-roger178  ALL=ALL
-ndemien ALL=ALL
+bwerts  ALL=ALL
 
 ## Allows members of the 'sys' group to run networking, software,
 ## service management apps and more.
