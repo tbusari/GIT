@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Usage: ipmi-getsel node
+#        ipmi-getsel node password
+#
+# To get the System Event Log from a machine over IPMI
+
+usage() {
+    COUNT=`cat $0 | tail -n +3 | grep -n '^$' -m 1 | cut -d ':' -f 1`
+    cat $0 | tail -n +3 | head -n $COUNT | colrm 1 2
+    exit 1
+}
+echo " " $@ | grep ' --help' > /dev/null && usage
+
+if [ -n "$3" ]; then
+  usage
+elif [ -n "$2" ]; then
+  node=$1
+  password=$2
+elif [ -n "$1" ]; then
+  node=$1
+  password=calvin
+else
+  usage
+fi
+
+ipmitool -U root -P $password -H $node sel list

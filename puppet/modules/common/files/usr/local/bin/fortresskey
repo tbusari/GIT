@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# $Id: krbinit-user 153 2015-10-14 15:48:05Z gveldman $
+# $URL: https://sentry.itap.purdue.edu/svn/codeprojects/trunk/hpss/krbinit-user $
+
+# Set constants
+umask 077
+PATH="/bin:/usr/bin"
+KRBINIT_ID_FILE="$HOME/.ssh/fortress_keytab_key"
+KEYTAB_FILE="$HOME/.private/hpss.keytab"
+KRB_INIT_HOST="discord.rcac.purdue.edu"
+
+# Support functions
+function do_die {
+    if [[ "$2" ]]
+    then
+        echo $2
+    fi
+    if [[ "$1" ]]
+    then
+        exit $1
+    else
+        exit 1
+    fi
+}
+
+# Make necessary directories
+if [[ ! -d $HOME/.ssh ]]
+then
+    mkdir -m 700 ~/.ssh || do_die 3 "Could not create ssh directory"
+fi
+
+if [[ ! -d $HOME/.private ]]
+then
+    mkdir -m 700 ~/.private || do_die 6 "Could not create private directory"
+fi
+
+# Generate an ssh key and add it to authorized_keys so we can get to discord
+if [[ ! -f $KRBINIT_ID_FILE ]]
+then
+    ssh-keygen -t rsa -b 4096 -f $KRBINIT_ID_FILE -N '' -q \
+      -C "$USER@purdue-hpss-krbinit" \
+      || do_die 2 "Could not generate ssh key."
+fi
+
+if [[ ! -f $HOME/.ssh/authorized_keys ]]
+then
+    touch $HOME/.ssh/authorized_keys \
+      && chmod 600 $HOME/.ssh/authorized_keys \
+      || do_die 4 "Could not create authorized_keys file."
+fi
+
+grep "$USER@purdue-hpss-krbinit" $HOME/.ssh/authorized_keys > /dev/null 2>&1
+if (( $? != 0 ))
+then
+    cat ${KRBINIT_ID_FILE}.pub >> $HOME/.ssh/authorized_keys
+fi
+
+# Do the work on the remote host
+ssh -qxT -o StrictHostKeyChecking=no -o BatchMode=yes \
+      -i $KRBINIT_ID_FILE $KRB_INIT_HOST krbinit-remote > ${KEYTAB_FILE}.new \
+      || do_die 5 "Could not initialize keytab on remote server."
+
+mv ${KEYTAB_FILE}.new $KEYTAB_FILE \
+  || do_die 7 "Could not install new keytab."

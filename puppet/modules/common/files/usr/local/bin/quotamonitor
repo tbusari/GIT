@@ -1,0 +1,216 @@
+#!/bin/bash
+
+WARNLEVEL=80
+CRITLEVEL=95
+
+FS="//"
+
+CHECK=0
+REPORT=0
+
+show_help() {
+cat << EOF
+Usage: ${0##*/} -f FILESYSTEM [-m] [-c] [-w PERCENT] [-c PERCENT]
+Provide usage report of filesystem quota or provide monitoring messages.
+
+	-h 		display this help and exit
+	-f FILESYSTEM   specify file system to check
+	-m 		provide monitoring checks
+	-r		provide usage report
+	-w		override default $WARNLEVEL% warning level (specify as integer)
+	-c		override default $CRITLEVEL% warning level (specify as integer)
+
+This is intended to be used in your crontab. If report is requested, this will always output and thus send you email. 
+
+If monitoring is requested, it will only generate output and email once a threshold is reached. The script leaves lock files to prevent repeated mailings. You receive mail on reaching threshold and again going back below it. It checks both total usage and file count (if a limit exists).
+
+You may edit your crontab with "crontab -e". Here are a couple sample entries.
+
+Monitor your /depot/foo space at 12am, 8am, 12pm, and 4pm
+0 0,8,12,16 * * * /usr/local/bin/quotamonitor -f /depot/foo -m
+
+Send weekly usage report of /depot/foo on Mondays
+0 0 * * 1 /usr/local/bin/quotamonitor -f /depot/foo -r
+EOF
+}
+
+while getopts "hf:mrw:c:" opt; do
+	case "$opt" in
+ 	h)
+  		show_help
+  		exit 0
+  		;;
+  	f)  FS=$OPTARG
+  		;;
+  	w)  WARNLEVEL=$OPTARG
+  		;;
+  	c)  CRITLEVEL=$OPTARG
+  		;;
+	m)  CHECK=1
+		;;
+	r)  REPORT=1
+		;;
+  	'?')
+  		show_help
+  		exit 0
+  		;;
+	esac
+done
+
+TYPE=`echo $FS | awk -F'/' '{ print $2 }'`
+NAME=`echo $FS | awk -F'/' '{ print $3 }'`
+
+# sanity checking
+if [[ -z $TYPE || -z $NAME ]]; then
+	echo "Error: Specified filesystem is invalid"
+	exit 1
+fi
+if ! [[ $WARNLEVEL =~ ^[0-9]+$ ]]; then
+	echo "Error: Warning level should be numeric integer."
+	exit 1
+fi
+if ! [[ $CRITLEVEL =~ ^[0-9]+$ ]]; then
+	echo "Error: Critical level should be numeric integer."
+	exit 1
+fi
+if [[ $WARNLEVEL -ge $CRITLEVEL ]]; then
+	echo "Error: Warning level should be less than critical level.";
+	exit 1
+fi
+
+
+# Set up files
+if [[ ! -d $HOME/.quotawarn ]]; then
+	mkdir $HOME/.quotawarn
+fi
+
+# Look for requested filesystem
+myquota=`/usr/local/bin/myquota`
+if [[ $? -ne 0 ]]; then
+	# should we spam on error?
+	if [[ $REPORT -eq 1 ]]; then
+		echo "Error: quotas for ${FS} unavailable."
+	fi
+	exit 1
+fi
+
+data=`echo "$myquota" | egrep "^${TYPE}" | egrep "${NAME}[ ,]"`
+
+if [[ $? -ne 0 ]]; then
+	echo "Error: requested filesystem not found"
+	exit 1
+fi
+
+# look for error
+echo $data | grep "inaccessible" >& /dev/null
+
+if [[ $? -eq 0 ]]; then
+	# should we spam on error?
+	if [[ $REPORT -eq 1 ]]; then
+		echo "Error: quotas for ${FS} unavailable."
+	fi
+	exit 1
+fi
+
+sizeusage=`echo $data | awk '{ print $3 }'`
+sizelimit=`echo $data | awk '{ print $4 }'`
+sizepercent=`echo $data | awk '{ print $5 }'`
+
+fileusage=`echo $data | awk '{ print $6 }'`
+filelimit=`echo $data | awk '{ print $7 }'`
+filepercent=`echo $data | awk '{ print $8 }'`
+
+if [[ $CHECK -eq 1 ]]; then
+
+	if [[ $sizepercent != "-" ]]; then
+		
+		percent=`echo $sizepercent | awk -F'%' '{ print $1 }'`
+		filelock=`echo "$HOME/.quotawarn/${TYPE}.${NAME}"`
+
+		if [[ $percent -ge $WARNLEVEL ]]; then
+			if [[ $percent -ge $CRITLEVEL ]]; then
+				# look for lock so we don't spam
+				if [[ ! -f ${filelock}.scrit ]]; then
+					echo "${FS} usage is at critical level!"
+					echo "${sizeusage} of ${sizelimit} is in use (${sizepercent})."
+					touch ${filelock}.scrit
+				fi
+			else
+				# remove crit lock if we had it
+				if [[ -f ${filelock}.scrit ]]; then
+					echo "${FS} usage has dropped below critical levels."
+					rm ${filelock}.scrit
+				fi
+					
+				if [[ ! -f ${filelock}.swarn ]]; then
+					echo "${FS} usage is high!"
+					echo "${sizeusage} of ${sizelimit} is in use (${sizepercent})."
+					touch ${filelock}.swarn
+				fi
+			fi
+		else
+			# remove locks if we had it
+			if [[ -f ${filelock}.scrit ]]; then
+				echo "${FS} usage has dropped below critical levels."
+				rm ${filelock}.scrit
+			fi
+			if [[ -f ${filelock}.swarn ]]; then
+				echo "${FS} usage has dropped below warning levels."
+				rm ${filelock}.swarn
+			fi
+		fi
+	fi
+
+
+	if [[ $filepercent != "-" ]]; then
+		
+		percent=`echo $filepercent | awk -F'%' '{ print $1 }'`
+		filelock=`echo "$HOME/.quotawarn/${TYPE}.${NAME}"`
+
+		if [[ $percent -ge $WARNLEVEL ]]; then
+			if [[ $percent -ge $CRITLEVEL ]]; then
+				# look for lock so we don't spam
+				if [[ ! -f ${filelock}.fcrit ]]; then
+					echo "${FS} file usage is at critical level!"
+					echo "${fileusage} of ${filelimit} files is in use (${filepercent})."
+					touch ${filelock}.fcrit
+				fi
+			else
+				# remove crit lock if we had it
+				if [[ -f ${filelock}.fcrit ]]; then
+					echo "${FS} file usage has dropped below critical levels."
+					rm ${filelock}.fcrit
+				fi
+					
+				if [[ ! -f ${filelock}.fwarn ]]; then
+					echo "${FS} usage is high!"
+					echo "${fileusage} of ${filelimit} files is in use (${filepercent})."
+					touch ${filelock}.fwarn
+				fi
+			fi
+		else
+			# remove locks if we had it
+			if [[ -f ${filelock}.fcrit ]]; then
+				echo "${FS} file usage has dropped below critical levels."
+				rm ${filelock}.fcrit
+			fi
+			if [[ -f ${filelock}.fwarn ]]; then
+				echo "${FS} file usage has dropped below warning levels."
+				rm ${filelock}.fwarn
+			fi
+		fi
+	fi
+fi
+
+if [[ $REPORT -eq 1 ]]; then
+	
+	echo "${FS} usage report:"
+	if [[ $sizepercent != "-" ]]; then
+		echo "${sizeusage} of ${sizelimit} (${sizepercent})"
+	fi
+	if [[ $filepercent != "-" ]]; then
+		echo "${fileusage} of ${filelimit} files (${filepercent})"
+	fi
+
+fi
+

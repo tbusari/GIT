@@ -1,0 +1,167 @@
+#!/bin/bash
+# Configures IPMI interface for RCAC machines.
+# Run this after replacing a motherboard with an integrated BMC.
+# And make sure VLANs are correct on new or moved machines.
+# Updated significantly by John Williamson
+VERBOSE=0
+FORCE=0
+
+usage() {
+  echo -e "Usage: $0 [-v]"
+  echo -e "\t-v\tPrints more information than you care about."
+  echo -e "\t-f\tLets you try even if it can't figure out the hardware type"
+}
+while getopts vf opt
+do
+  case $opt in
+    v ) 
+      VERBOSE=1;;
+    f )
+      FORCE=1;;
+    \? ) 
+      echo "The only valid options are 'v' and 'f'"
+      usage
+      exit;;
+  esac
+done
+
+# Quickly define a few things
+NODE=`hostname -a`
+if [ -z "$NODE" ]; then
+  NODE=`hostname --short`;
+  if [ -z "$NODE" ]; then
+    NODE=`sed -n '2p' /etc/sysconfig/network | perl -pe 's/.*=(.*?)\..*/$1/'`;
+  fi
+fi
+IP=`host $NODE | awk '{print $4}'`
+VENDOR='unknown'
+MANUFACTURER=`/usr/sbin/dmidecode -s system-manufacturer`
+PATH="$PATH:/sbin/:/usr/sbin/"
+
+# Most of this is old code, but comes down to making sure hardware
+#  differences are accounted for.
+if echo $MANUFACTURER | grep -qi VMWare; then
+  echo "This is a VM. You likely didn't want this to run."
+  exit
+fi
+
+if echo $MANUFACTURER | grep -qi Dell; then
+  VENDOR=Dell
+  INTERFACE=1
+fi
+
+if echo $MANUFACTURER | grep -qi HP; then
+  VENDOR=HP
+  INTERFACE=2
+fi
+if echo $MANUFACTURER | grep -qi Supermicro; then
+  VENDOR=Supermicro
+  INTERFACE=1
+fi
+# This used to be the end of the line for many hosts.
+# Here we just try to find the interface number by
+#  brute force, and give up if that doesn't work either.
+if [ $VENDOR == "unknown" ]; then
+  if [ $FORCE == "1" ]; then
+    echo -e "A vendor could not be determined.\nWe can still try, but I can't promise anything.\nWant to give it a shot?\nAnswer 1 or 2."
+    select yn in "Yes" "No"; do
+      case $yn in
+        [Yy]* ) 
+          for i in {1..8}
+            do ipmitool lan print $i
+            if [ $? -eq 0 ]; then
+              VENDOR="Found"
+              INTERFACE="$i"
+              break
+            fi
+          done
+          if [ $VENDOR == "unknown" ]; then
+            echo "Sorry, couldn't do it!"
+            exit
+          fi;;
+        [Nn]* )
+          exit;;
+      esac
+    done
+  else
+    echo "Sorry, couldn't do it!"
+    exit
+  fi
+fi
+# If our 'host' command succeeded, we get to do it the easy way.
+# If not, we'll still try the way we know how.
+if [[ $IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+  echo -e "We will be continuing with IP $IP"
+  NETMASK=`/sbin/ifconfig | grep "$IP" | awk '{print $4}' | cut -d : -f2`
+  NIC=$(/sbin/ip -o addr list | grep $IP | awk '{print $2}')
+  GW=$(/sbin/route -n | grep $NIC | awk '$1 == "0.0.0.0" {print $2}')
+  ROUTER=10.4.`echo $GW | cut -d\. -f3-`
+  MGMTIP=10.4.`echo $IP | cut -d\. -f3-`
+  MAJOR=`cat /proc/devices | grep ipmi | awk '{print $1}'`
+else
+  echo -e "We couldn't find the IP the easy way, so we're going the tough way. This will not work if the first interface isn't the one that matches the management IP the closest."
+  IP=$(/sbin/ifconfig | grep "inet addr:" | grep -v "addr:127\.0\.0\.1" | awk '{print $2}' | cut -d : -f2 | head -n 1)
+  NETMASK=`/sbin/ifconfig | grep "$IP" | awk '{print $4}' | cut -d : -f2`
+  GW=`/sbin/route -n | grep UG | awk '{print $2}'`
+  ROUTER=10.4.`echo $GW | cut -d\. -f3-`
+  MGMTIP=10.4.`echo $IP | cut -d\. -f3-`
+  MAJOR=`cat /proc/devices | grep ipmi | awk '{print $1}'`
+fi
+
+PASSWORD=bobbob13
+
+# If you use a conf file, please be sure to put it in puppet.
+# See the README file in the ipmi puppet module.
+CONF_FILE=/usr/site/rcac/etc/ipmisetup.conf
+if [ -f $CONF_FILE ] ; then
+  if [ "$VERBOSE" == "1" ]; then
+    echo "Using $CONF_FILE to override values"
+  fi
+  source $CONF_FILE
+fi
+
+if [ "$VERBOSE" == "1" ]; then
+  echo -e "IP: $IP \nGateway: $GW \nNetmask: $NETMASK \nManagement IP: $MGMTIP \nManagement Gateway: $ROUTER \nIPMI device: $MAJOR"
+fi
+
+# This makes absolutely sure the ipmi bits are up and alive
+echo "Restarting IPMI"
+/etc/init.d/ipmi restart
+/etc/init.d/ipmievd restart
+mknod -m 0600 /dev/ipmi0 c $MAJOR 0
+
+# The meat and potatoes are here, with if statements below for
+#  corner cases.
+echo "Configuring IPMI:"
+ipmitool lan set $INTERFACE ipsrc static
+ipmitool lan set $INTERFACE ipaddr $MGMTIP
+ipmitool lan set $INTERFACE netmask $NETMASK
+ipmitool lan set $INTERFACE defgw ipaddr $ROUTER
+ipmitool lan set $INTERFACE bakgw ipaddr $ROUTER
+ipmitool lan set $INTERFACE access on
+ipmitool lan set $INTERFACE password $PASSWORD
+
+if [ $VENDOR == "Dell" ] || [ $VENDOR == "Sun" ]; then
+  ipmitool user set password $INTERFACE $PASSWORD
+fi
+if echo $NODE | grep -qi hansen; then
+  ipmitool user set name $INTERFACE root
+  ipmitool delloem lan set dedicated
+fi
+if [ $VENDOR == "HP" ]; then
+  ipmitool user set name $INTERFACE root
+  ipmitool user set password $INTERFACE $PASSWORD
+  ipmitool user priv 2 4 $INTERFACE
+  ipmitool user enable $INTERFACE
+fi
+if [ $VENDOR == "Supermicro" ] ; then
+  ipmitool user set name 3 root
+  ipmitool user set password 3 calvin
+  ipmitool user priv 3 4 1
+  ipmitool user enable 3
+fi
+#ipmitool mc reset cold
+# The above is commented out for now because it has the ability
+#  to make nodes freak out until their next reboot due to some BMCs
+#  handling certain things like fan speed control. 
+echo -e "Done!\nPlease run 'ipmitool mc reset cold' to reset the BMC.\nThis can cause instability on some machines\n"

@@ -1,0 +1,4 @@
+#!/bin/bash
+logger "Invoking hyperthreading toggle at `date`"
+/usr/site/rcac/scripts/toggle_hyperthreading.py --off &>/var/log/messages 
+logger "Finished at `date`"

@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# Usage: ipmi-getsel state node
+#        ipmi-getsel state node password
+#
+# To change the power state of a node
+#  State can be equal to: status, on, off, cycle, reset, diag, soft
+
+usage() {
+    COUNT=`cat $0 | tail -n +3 | grep -n '^$' -m 1 | cut -d ':' -f 1`
+    cat $0 | tail -n +3 | head -n $COUNT | colrm 1 2
+    exit 1
+}
+echo " " $@ | grep ' --help' > /dev/null && usage
+
+if [ -n "$4" ]; then
+  usage
+elif [ -n "$3" ]; then
+  state=$1
+  node=$2
+  password=$3
+elif [ -n "$2" ]; then
+  state=$1
+  node=$2
+  password=calvin
+else
+  usage
+fi
+
+if echo $node | grep -qie "carter\|conte\|hammer\|rice\|peregrine1"; then
+  ipmitool -I lanplus -H $node -U root -P bobbob13 chassis power $state
+  exit 0
+fi
+
+ipmitool -U root -P $password -H $node power $state

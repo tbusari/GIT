@@ -1,0 +1,12 @@
+/bin/sh
+/bin/bash
+/bin/ksh
+/bin/tcsh
+/bin/csh
+/bin/zsh
+/usr/local/bin/bash
+/usr/local/bin/tcsh
+/opt/acmaint/etc/message
+/opt/acmaint/etc/nologin
+/opt/acmaint/etc/disable
+/opt/commsh/bin/commsh

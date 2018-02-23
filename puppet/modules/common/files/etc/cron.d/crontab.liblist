@@ -1,0 +1,2 @@
+*/30 * * * * root /usr/site/rcac/bin/liblist list >/dev/null 2>&1
+05 00 * * * root /usr/site/rcac/bin/liblist archive >/dev/null 2>&1

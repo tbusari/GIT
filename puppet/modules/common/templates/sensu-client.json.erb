@@ -1,0 +1,20 @@
+{
+    "client": {
+        "safe_mode": false,
+        "address": "<%= @ipaddress %>",
+        "keepalive": {
+            "handler": "default",
+            "thresholds": {
+                "warning": 180,
+                "critical": 300
+            }
+        },
+        "bind": "127.0.0.1",
+        "name": "<%= @fqdn %>",
+        "subscriptions": [
+            "all",
+            "non_compute_node",
+            "<%= @fqdn %>"
+        ]
+    }
+}

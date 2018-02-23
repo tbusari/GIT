@@ -1,0 +1,7 @@
+#!/bin/bash
+
+echo "Writing current BIOS config to syslogs"
+conrep -s -f /dev/stdout &>/var/log/messages
+echo "Loading proper config from /etc/conrep.dat"
+conrep -l -f /etc/conrep.dat
+echo "PLEASE REBOOT THIS MACHINE BEFORE DOING ANYTHING MUCH ELSE, OTHERWISE THE CONFIGURATION WILL NOT BE TAKEN"

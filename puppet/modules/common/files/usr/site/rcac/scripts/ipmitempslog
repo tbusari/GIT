@@ -1,0 +1,52 @@
+#!/usr/bin/perl
+
+use IO::Events;
+use Net::Domain qw(hostname);
+
+my $host = hostname();
+my $loop = IO::Events::Loop->new();
+my $timeout = 300 + int(rand(60));
+my $ipmitool = IO::Events::Process::ReadWrite->new(
+    owner       => $loop,
+    process     => 'sudo ipmitool shell 2>&1',
+    on_read     => sub {
+                       while (my $line = $_[0]->readline) {
+                           chomp($line);
+                           if ( $line =~ /ipmitool>$/ ) {
+                               next;
+                           } elsif ( $line =~ /sdr list/ ) {
+                               next;
+                           } elsif ( $line =~ /Could not open device/ ) {
+                               $RET=`logger -i "IPMI not working"`;
+                               last;
+                           } elsif ( $line =~ /.*[aA]mbient.*?\|\s*(\d+).*/ ) {
+                               my $temperature = $1;
+                               $RET=`logger -i "ipmitempslog $host Ambient $temperature degrees C"`;
+                           } elsif ( $line =~ /.*[pP]ower [mM]eter.*?\|\s*(\d+).*/ ) {
+                               my $temperature = $1;
+                               $RET=`logger -i "ipmitempslog $host Power Drain $temperature Watts"`;
+                           } elsif ( $line =~ /.*CPU\s*(\d*).*?\|\s*(\d+).*/ ) {
+                               my $CPU = $1;
+                               my $temperature = $2;
+                               $RET=`logger -i "ipmitempslog $host CPU $CPU $temperature degrees C"`;
+                           } elsif ( $line =~ /.*DIMM\s*(\d*\-\d*).*?\|\s*(\d+).*/ ) {
+                               my $DIMM = $1;
+                               my $temperature = $2;
+                               $RET=`logger -i "ipmitempslog $host DIMMs $DIMM $temperature degrees C"`;
+                           } else {
+                           }
+                       }
+                   }
+    );
+
+my $ipmi_timer = IO::Events::Timer->new(
+    owner       => $loop,
+    active      => 1,
+    repetitive  => 1,
+    timeout     => $timeout,
+    on_tick     => sub {
+                       $ipmitool->write("sdr list\n");
+                   }
+    );
+
+$loop->yield while 1;

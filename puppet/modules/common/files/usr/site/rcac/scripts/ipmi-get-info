@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Get IPMI information
+#
+# Usage: ipmi-get-info
+
+usage () {
+    COUNT=`cat $0 | tail -n +3 | grep -n '^$' -m 1 | cut -d ':' -f 1`
+    cat $0 | tail -n +3 | head -n $COUNT | colrm 1 2
+    exit 1
+}
+echo " " $@ | grep ' --help' > /dev/null && usage
+
+if [ -n "$1" ]; then
+    usage
+fi
+
+echo Getting IPMI information as root ...
+
+# No-op to make sudo prompt before piping to less
+sudo test
+
+# Pipe output to less
+{
+    echo System event log status:
+    echo
+    sudo ipmitool sel
+    echo
+    echo System event log contents:
+    echo
+    sudo ipmitool sel elist 2>&1
+    echo
+    echo Sensor data:
+    echo
+    sudo ipmitool sdr elist
+} | less

@@ -1,0 +1,2 @@
+@reboot root /usr/site/rcac/sbin/update_ssh_known_hosts >/dev/null 2>/dev/null
+05 * * * * root /usr/site/rcac/sbin/update_ssh_known_hosts >/dev/null 2>/dev/null

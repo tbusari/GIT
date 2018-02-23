@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# This script will be executed *after* all the other init scripts.
+# You can put your own initialization stuff in here if you don't
+# want to do the full Sys V style init stuff.
+
+touch /var/lock/subsys/local
+
+# Turn off hyperthreading darn it!
+/usr/site/rcac/scripts/toggle_hyperthreading.py --off
+
+ln -s --force /usr/share/zoneinfo/America/Indiana/Indianapolis /etc/localtime
+
+# This is a complete hack, but it seems difficult to do the exact resolv.conf
+# options we want in xCAT.
+mv /etc/resolv.conf.rcac /etc/resolv.conf
+
+# Set the BIOS to a consistent state.
+/sbin/conrep -l -f /etc/conrep.dat
+ipmitool mc reset cold

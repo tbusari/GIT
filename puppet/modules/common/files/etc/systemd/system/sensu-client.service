@@ -1,0 +1,17 @@
+[Unit]
+Description=sensu client
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+User=sensu
+Group=sensu
+ExecStart=/bin/bash -c 'PATH=/opt/sensu/embedded/bin:$PATH:/etc/sensu/plugins:/etc/sensu/handlers GEM_PATH=/opt/sensu/embedded/lib/ruby/gems/2.3.0:$GEM_PATH /opt/sensu/bin/sensu-client -b -d /etc/sensu/conf.d -e /etc/sensu/extensions -p /var/run/sensu/sensu-client.pid -l /var/log/sensu/sensu-client.log -L info'
+ExecStartPost=/usr/bin/sleep 0.1
+PIDFile=/var/run/sensu/sensu-client.pid
+Restart=on-failure
+RestartSec=1min
+
+[Install]
+WantedBy=multi-user.target

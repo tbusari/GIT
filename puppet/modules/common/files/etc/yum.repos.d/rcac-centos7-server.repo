@@ -1,0 +1,15 @@
+[rcac-rhel7-os]
+name=CentOS $rhver - $basearch - Server Mirror ($repo_version_rhel) (OS)
+baseurl=http://mirror.rcac.purdue.edu/yum-research/centos7-server-$repo_version_rhel-$basearch/RPMS.os
+enabled=1
+gpgcheck=0
+exclude=puppet* globus* torque* lcmaps* udt* ganglia* condor
+priority=90
+
+[rcac-rhel7-updates]
+name=CentOS $rhver - $basearch - Server Mirror ($repo_version_rhel) (Updates)
+baseurl=http://mirror.rcac.purdue.edu/yum-research/centos7-server-$repo_version_rhel-$basearch/RPMS.updates
+enabled=1
+gpgcheck=0
+exclude=puppet* globus* torque* lcmaps* udt* ganglia* condor
+priority=90

@@ -1,0 +1,11 @@
+create campus_ipv4 hash:net family inet hashsize 1024 maxelem 65536
+add campus_ipv4 172.16.0.0/12
+add campus_ipv4 10.0.0.0/8
+add campus_ipv4 192.168.0.0/16
+add campus_ipv4 128.10.0.0/16
+add campus_ipv4 128.46.0.0/16
+add campus_ipv4 128.210.0.0/15
+add campus_ipv4 204.52.32.0/19
+create campus_ipv6 hash:net family inet6 hashsize 1024 maxelem 65536
+add campus_ipv6 2607:ac80::/32
+add campus_ipv6 2001:18e8:800::/44

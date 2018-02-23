@@ -1,0 +1,5 @@
+#!/bin/bash
+
+/sbin/hponcfg -f /etc/fixilo.xml
+/usr/site/rcac/scripts/ipmisetup
+/usr/bin/ipmitool mc reset cold

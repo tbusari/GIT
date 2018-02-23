@@ -1,0 +1,2 @@
+@reboot root /var/db/nssdb_update.sh >/dev/null 2>/dev/null
+45 * * * * root /var/db/nssdb_update.sh >/dev/null 2>/dev/null

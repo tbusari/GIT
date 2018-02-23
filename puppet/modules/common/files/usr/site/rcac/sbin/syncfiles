@@ -1,0 +1,6 @@
+#!/bin/bash
+/usr/bin/rsync -az brown-sys:/usr/site/rcac/secure/ /usr/site/rcac/secure/ 2>/dev/null
+/usr/bin/rsync -az brown-sys:/install/sensu/rabbitmq.json /etc/sensu/conf.d/rabbitmq.json 2>/dev/null
+/usr/bin/rsync -az brown-sys:/install/sensu/sensuApiAuth.json /etc/sensu/sensuApiAuth.json 2>/dev/null
+/usr/bin/rsync -az brown-sys:/install/sensu/key.pem /etc/sensu/ssl/key.pem 2>/dev/null
+/usr/bin/rsync -az brown-sys:/etc/pam_radius.conf /etc/pam_radius.conf 2>/dev/null

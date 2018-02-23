@@ -1,0 +1,2 @@
+#!/bin/bash
+wget --output-document=/etc/ssh/ssh_known_hosts -- http://centralservices.rcac.purdue.edu/ssh_known_hosts

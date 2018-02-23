@@ -1,0 +1,1 @@
+home                	-nodev,intr,nosuid,ro,proto=tcp,vers=3,hard,bg,rsize=131072,wsize=524288,timeo=600,retrans=2 persistent-nfs.rcac.purdue.edu:/persistent/.snapshots

@@ -1,0 +1,6 @@
+[rcac-software]
+name=CentOS $rhver - $basearch - RCAC Software
+baseurl=http://mirror.rcac.purdue.edu/yum-research/rcac_centos7-software-$basearch/RPMS.rcac_software
+enabled=1
+gpgcheck=0
+priority=5

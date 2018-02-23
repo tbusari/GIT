@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# Load modules for IPMI
+# Use this first, then use either ipmi-get-info or ipmi-clear-log
+#
+# Usage: ipmi-load-modules
+
+usage () {
+    COUNT=`cat $0 | tail -n +3 | grep -n '^$' -m 1 | cut -d ':' -f 1`
+    cat $0 | tail -n +3 | head -n $COUNT | colrm 1 2
+    exit 1
+}
+echo " " $@ | grep ' --help' > /dev/null && usage
+
+if [ -n "$1" ]; then
+    usage
+fi
+
+echo Inserting modules as root ...
+sudo modprobe ipmi_msghandler
+sudo modprobe ipmi_devintf
+
+if ! sudo modprobe ipmi_kcs_drv 2>/dev/null ; then
+    # try new module name
+    sudo modprobe ipmi_si
+fi
+
+# Trigger udev to create the device                                             
+ls -l /dev/ipmi0 > /dev/null 2>&1

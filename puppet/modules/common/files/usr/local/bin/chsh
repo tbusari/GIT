@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# All Purdue research users must change their shells via the web interface.
+#
+
+echo "================================================================================"
+echo " To change your Purdue Research Computing shell, please use the secure web form:"
+echo "                   https://www.rcac.purdue.edu/account/myinfo/"
+echo "================================================================================"

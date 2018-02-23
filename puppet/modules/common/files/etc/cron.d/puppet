@@ -1,0 +1,2 @@
+@reboot root /usr/site/rcac/sbin/run_puppet 2>/dev/null
+30 * * * * root /usr/site/rcac/sbin/run_puppet 2>/dev/null

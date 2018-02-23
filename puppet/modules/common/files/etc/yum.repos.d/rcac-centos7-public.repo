@@ -1,0 +1,6 @@
+[rcac-centos7-public]
+name=CentOS $rhver - $basearch - PUBLIC REPOSITORY
+baseurl=http://mirror.rcac.purdue.edu/yum-research/rcac_centos7-public-$basearch/RPMS.rcac_public
+enabled=1
+gpgcheck=0
+priority=90

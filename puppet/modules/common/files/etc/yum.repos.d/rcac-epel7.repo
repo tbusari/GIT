@@ -1,0 +1,7 @@
+[rcac-epel7]
+name=CentOS $rhver - $basearch - EPEL Mirror ($repo_version_epel)
+baseurl=http://mirror.rcac.purdue.edu/yum-research/rcac_epel7-$repo_version_epel-$basearch/RPMS.rcac_epel
+enabled=1
+gpgcheck=0
+exclude=puppet* globus* torque* lcmaps* udt* ganglia* condor
+priority=90

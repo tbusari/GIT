@@ -1,0 +1,126 @@
+#!/usr/bin/python
+#
+# Copyright 2016, Michael Shuey, Purdue University
+#
+# Re-implementation of the old log command, using Python (for newer APIs).
+#
+# Use this command to broadcast news of a change (or event), no matter how
+# minor, to a wide range of colleagues.  Run the command, use $EDITOR to fill
+# out the form, save and quit.
+#
+# Usage:
+#    log [<options>] <message title>
+
+
+import argparse, sys, os, tempfile, getpass, socket, time, smtplib
+
+from slackclient import SlackClient
+from subprocess import call
+from email.mime.text import MIMEText
+
+slack_channel='#changelog'
+slack_user='@rcacbot'
+email_recipient='research-computing@lists.purdue.edu'
+
+uname = getpass.getuser()
+hostname = socket.gethostname()
+
+
+def send_slack(message):
+    print "Sending to Slack"
+
+    try:
+        sfd = open('/usr/site/rcac/secure/slack_token', 'r')
+        slack_token = sfd.read()
+        sfd.close()
+    except:
+        print "Can't load Slack token; skipping Slack notification."
+        return
+
+    slack_token.rstrip()
+    if slack_token[-1:] == '\n':
+        slack_token = slack_token[:-1]
+
+    sc = SlackClient(slack_token)
+
+    sc.api_call(
+        "chat.postMessage",
+        channel=slack_channel,
+        text=message,
+        as_user=slack_user
+    )
+
+
+def send_email(message, title):
+    print "Sending email"
+
+    sender = getpass.getuser() + '@purdue.edu'
+
+    msg = MIMEText(message)
+    msg['Subject'] = title
+    msg['From'] = sender
+    msg['To'] = email_recipient
+
+    s = smtplib.SMTP('smtp.purdue.edu')
+    s.sendmail(sender, email_recipient, msg.as_string())
+    s.quit()
+
+
+def main():
+    global slack_channel
+    global email_recipient
+
+    parser = argparse.ArgumentParser(description="Log standard RCAC changes.")
+    parser.add_argument('-s', '--noslack', required=False, help="Omit Slack notification", action='store_false', default=True, dest='slack')
+    parser.add_argument('-e', '--noemail', required=False, help="Omit email notification", action='store_false', default=True, dest='email')
+    parser.add_argument('-t', '--test', required=False, help="Test notifications (don't contact public channels)", action='store_true', default=False, dest='test')
+    parser.add_argument('-y', '--why', required=False, help="Pre-populate reason for change (skipping editor)", dest='why', default=False, nargs=1)
+    parser.add_argument('title', metavar='<message title>', nargs='+', type=str)
+
+    args = parser.parse_args()
+
+    title = " ".join(args.title)
+
+    message = "WHAT:\n\t" + title + '\n' + \
+              "WHO:\n\t" + getpass.getuser() + '\n' + \
+              "WHEN:\n\t" + \
+               time.strftime("%Y-%m-%d %H:%M:%S (%Z)", time.localtime()) + \
+               '\n' + \
+              "WHERE:\n\t" + socket.gethostname() + '\n' + \
+              "WHY:\n\n"
+
+    if args.why != False:
+        message = message + args.why[0]
+
+    if args.why == False:
+        try:
+            tmp_fdnum, tmp_name = tempfile.mkstemp(prefix="logtmp_")
+            tmp_fd = os.fdopen(tmp_fdnum,'w')
+            tmp_fd.write(message)
+            tmp_fd.close()
+
+            editor = os.environ.get('EDITOR', 'vi')
+            call([editor, tmp_name])
+
+            tmp_fd = open(tmp_name, 'r')
+            message = tmp_fd.read()
+            tmp_fd.close()
+            os.unlink(tmp_name)
+        except:
+            print "Problems manipulating temporary file to edit message."
+            print "Aborting."
+            sys.exit(2)
+
+    if args.test:
+        slack_channel = '#test'
+        email_recipient = uname + '@purdue.edu'
+    if args.slack:
+        send_slack(message)
+    if args.email:
+        send_email(message, title)
+
+    print message
+
+
+if __name__ == "__main__":
+    main()

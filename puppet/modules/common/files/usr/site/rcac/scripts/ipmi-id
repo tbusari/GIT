@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# Usage: ipmi-id state node
+#        ipmi-id state node password
+#
+# To change the state of the identify light on a node
+#  State can be equal to: blink, on, off
+
+usage() {
+    COUNT=`cat $0 | tail -n +3 | grep -n '^$' -m 1 | cut -d ':' -f 1`
+    cat $0 | tail -n +3 | head -n $COUNT | colrm 1 2
+    exit 1
+}
+echo " " $@ | grep ' --help' > /dev/null && usage
+
+if [ -n "$4" ]; then
+  usage
+elif [ -n "$3" ]; then
+  state=$1
+  node=$2
+  password=$3
+elif [ -n "$2" ]; then
+  state=$1
+  node=$2
+  password=calvin
+else
+  usage
+fi
+
+if [ $state == "blink" ]; then
+  state=600
+elif [ $state == "on" ]; then
+  state="force"
+elif [ $state == "off" ]; then
+  state=0
+else
+  usage
+fi
+
+ipmitool -U root -P $password -H $node chassis identify $state

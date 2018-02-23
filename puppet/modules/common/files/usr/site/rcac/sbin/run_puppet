@@ -1,0 +1,7 @@
+#!/bin/bash
+
+cd /etc/puppet
+/usr/bin/git pull | /usr/bin/logger -t gitupdate -s
+/usr/bin/puppet apply --color=false /etc/puppet/manifests/common.pp 2>&1 | /usr/bin/logger -t puppet -s
+
+exit 0

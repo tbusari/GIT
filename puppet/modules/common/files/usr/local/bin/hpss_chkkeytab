@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# hpss_chkkeytab
+#
+# Ensure that the user has a currently-valid HPSS keytab, and if not,
+# generate a new one automatically.
+#
+# To facilitate doing so via fortresskey, if not already present, create
+# a new SSH key to allow fortresskey to connect to keymaster for the
+# purpose of keytab generation without re-prompting the user.
+# 
+
+# Bail if root. Trust us, we're scientists.
+if [[ "$UID" == "0" ]]; then
+        exit 0
+fi
+
+# Check for existence and expiration of any existing keytab.
+#
+CREATE_KEYTAB=0
+if [ -e "${HOME}/.private/hpss.keytab" ]; then
+	TIME_KEYTAB=`stat -c '%Y' ${HOME}/.private/hpss.keytab 2> /dev/null`
+	if [ "x${TIME_KEYTAB}" != "x" ]; then
+		TIME_NOW=`date +'%s'`
+		AGE_KEYTAB=`expr ${TIME_NOW} - ${TIME_KEYTAB}`
+
+		# Keytabs expire at 90 days, so check for >89 days just in case.
+		if [ ${AGE_KEYTAB} -gt 7689600 ]; then
+			echo "***********************************************************************" 1>&2
+			echo "**  Your Fortress keytab has expired.  Creating a new one now.       **" 1>&2
+			echo "**  If you have downloaded your keytab for use on personal systems,  **" 1>&2
+			echo "**  you will need to redownload the new keytab after this.           **" 1>&2
+			echo "***********************************************************************" 1>&2
+			CREATE_KEYTAB=1
+		fi
+	fi
+else
+	echo "***************************************************************************" 1>&2
+	echo "**  No Fortress keytab found in your home directory.  Creating one now.  **" 1>&2
+	echo "***************************************************************************" 1>&2
+	CREATE_KEYTAB=1
+fi
+
+# If no usable keytab exists, generate a new one.
+#
+if [ ${CREATE_KEYTAB} -eq 1 ]; then
+
+	# Use fortresskey to generate the new keytab.
+	#
+	/usr/local/bin/fortresskey 1>&2
+fi
+
